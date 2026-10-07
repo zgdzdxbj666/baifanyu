@@ -1,6 +1,6 @@
 package com.whalepet;
-
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -15,14 +15,12 @@ import android.view.Choreographer;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
-
 import java.io.IOException;
 import java.io.InputStream;
-
 /**
  * 宠物的绘制、动作、皮肤与交互。
  *
- * 皮肤 = 一套放在 assets/skins/&lt;名字&gt;/ 里的立绘：
+ * 皮肤 = 一套放在 assets/skins/<名字>/ 里的立绘：
  *   一张基准正面立绘 pet_stand.png + 若干表情 pet_face_*.png
  * 加一套皮肤只要在 SKINS 里加一行 + 往 assets/skins/ 放图。
  *
@@ -32,19 +30,15 @@ import java.io.InputStream;
  * 整张换掉就没这个问题：每张图内部是自洽的，身体也不会跳。
  */
 public class PetView extends View implements Choreographer.FrameCallback {
-
     public static final int STATE_HOVER = 0;
     public static final int STATE_PERCH = 1;
-
     private static final String DIR_MAID = "skins/maid/";
     private static final String DIR_BASIN = "skins/basin/";
-
     // 头部区块的默认比例（女仆装那套调的）
     private static final float DEF_HX0 = 35f / 1191f;
     private static final float DEF_HX1 = 985f / 1191f;
     private static final float DEF_HY0 = 30f / 1514f;
     private static final float DEF_HY1 = 800f / 1514f;
-
     /**
      * 一套皮肤。
      *
@@ -56,11 +50,9 @@ public class PetView extends View implements Choreographer.FrameCallback {
         public final String name, base;
         public final String[] faces;
         public final float hx0, hx1, hy0, hy1;
-
         Skin(String name, String base, String[] faces) {
             this(name, base, faces, DEF_HX0, DEF_HX1, DEF_HY0, DEF_HY1);
         }
-
         Skin(String name, String base, String[] faces,
              float hx0, float hx1, float hy0, float hy1) {
             this.name = name;
@@ -72,7 +64,6 @@ public class PetView extends View implements Choreographer.FrameCallback {
             this.hy1 = hy1;
         }
     }
-
     // 第一套是默认皮肤
     public static final Skin[] SKINS = {
             new Skin("饭盆头", DIR_BASIN + "pet_stand.png", new String[]{
@@ -92,10 +83,8 @@ public class PetView extends View implements Choreographer.FrameCallback {
                     DIR_MAID + "pet_face_confused.png",
             }),
     };
-
-    private static final float NS = 1_000_000_000f;
+    private static final float NS = 1_00_00_000f;
     private static final long LONG_PRESS_MS = 800;
-
     public interface Listener {
         void onDragStart();
         void onDrag(float dx, float dy);
@@ -103,48 +92,37 @@ public class PetView extends View implements Choreographer.FrameCallback {
         void onTap();
         void onLongPress();
     }
-
     private Context ctx;
     private Bitmap baseBmp;      // 基准立绘（跟皮肤走）
     private Bitmap faceBmp;      // 当前表情（需要回收）
     private Bitmap cur;          // 当前显示的那张
     private Bitmap rotCache;     // cur 的 90° 版本，趴边用，按需生成
-
     private int skinIdx = 0, faceCur = 0;
     private boolean[] faceOk = new boolean[0];
-
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Handler handler = new Handler(Looper.getMainLooper());
-
     private int srcW = 944, srcH = 1200;
     private int headX0, headX1, headY0, headY1;
-
     private int state = STATE_HOVER;
     private boolean mirrorX = false;
     private float hoverHeightDp = 240f, perchWidthDp = 96f, ampScale = 0.75f;
-
     private float pDy, pSx = 1f, pSy = 1f;
-
     private float dragTilt;
     private long startNs, lastFrameNs, tapNs;
     private long frameIntervalNs = (long) (NS / 30);
     private boolean windowVisible = true, looping = false;
-
     private Listener listener;
     private float downRawX, downRawY, lastRawX, lastRawY;
     private boolean dragging, longPressed;
     private int touchSlop;
-
     private final Runnable longPressRun = new Runnable() {
         @Override public void run() {
             longPressed = true;
             if (listener != null) listener.onLongPress();
         }
     };
-
     public PetView(Context c) { super(c); init(c); }
     public PetView(Context c, AttributeSet a) { super(c, a); init(c); }
-
     private void init(Context c) {
         ctx = c;
         touchSlop = ViewConfiguration.get(c).getScaledTouchSlop();
@@ -152,7 +130,6 @@ public class PetView extends View implements Choreographer.FrameCallback {
         paint.setDither(true);
         applySkin(0);
     }
-
     private Bitmap decode(String name) {
         if (name == null) return null;
         try {
@@ -164,25 +141,20 @@ public class PetView extends View implements Choreographer.FrameCallback {
             return null;
         }
     }
-
     private boolean assetExists(String name) {
         try { ctx.getAssets().open(name).close(); return true; }
         catch (Exception e) { return false; }
     }
-
     private static Bitmap rotate90(Bitmap src) {
         Matrix m = new Matrix();
         m.postRotate(90);
         return Bitmap.createBitmap(src, 0, 0, src.getWidth(), src.getHeight(), m, true);
     }
-
     private void clearRot() {
         if (rotCache != null && !rotCache.isRecycled()) rotCache.recycle();
         rotCache = null;
     }
-
     // ---------------- 皮肤 ----------------
-
     public void applySkin(int idx) {
         if (idx < 0 || idx >= SKINS.length) return;
         Skin s = SKINS[idx];
@@ -190,15 +162,12 @@ public class PetView extends View implements Choreographer.FrameCallback {
         faceBmp = null;
         clearRot();
         if (baseBmp != null && !baseBmp.isRecycled()) baseBmp.recycle();
-
         skinIdx = idx;
         faceCur = 0;
         baseBmp = decode(s.base);
-
         // 只认真正存在的表情文件 —— 这样素材没到齐也不会切到空白
         faceOk = new boolean[s.faces.length];
         for (int i = 0; i < s.faces.length; i++) faceOk[i] = assetExists(s.faces[i]);
-
         cur = baseBmp;
         if (cur != null) {
             srcW = cur.getWidth();
@@ -211,16 +180,12 @@ public class PetView extends View implements Choreographer.FrameCallback {
         requestLayout();
         invalidate();
     }
-
     public void cycleSkin() { applySkin((skinIdx + 1) % SKINS.length); }
-
     public int skinCount() { return SKINS.length; }
     public int currentSkin() { return skinIdx; }
     public String skinName() { return SKINS[skinIdx].name; }
     public String skinName(int i) { return (i >= 0 && i < SKINS.length) ? SKINS[i].name : ""; }
-
     // ---------------- 表情 ----------------
-
     public void setFace(int idx) {
         Skin s = SKINS[skinIdx];
         if (idx < 0 || idx > s.faces.length || idx == faceCur) return;
@@ -240,7 +205,6 @@ public class PetView extends View implements Choreographer.FrameCallback {
         clearRot();
         invalidate();
     }
-
     public void cycleFace() {
         int n = SKINS[skinIdx].faces.length;
         for (int i = 1; i <= n; i++) {
@@ -248,32 +212,23 @@ public class PetView extends View implements Choreographer.FrameCallback {
             if (idx == 0 || faceOk[idx - 1]) { setFace(idx); return; }
         }
     }
-
     public int faceCount() {
         int n = 0;
         for (boolean b : faceOk) if (b) n++;
         return n;
     }
-
     public int currentFace() { return faceCur; }
-
     public void pokeFeedback() { tapNs = System.nanoTime(); invalidate(); }
-
     public void setListener(Listener l) { this.listener = l; }
-
     // ---- 自动溜达：Service 挪窗口，这里只管"走路的样子" ----
     private boolean walking = false;
     private long lastTouchMs = System.currentTimeMillis();
-
     public void setWalking(boolean w) {
         if (walking != w) { walking = w; invalidate(); }
     }
-
     /** 距离上一次碰她过了多久（毫秒）—— 刚碰过就先别乱跑 */
     public long msSinceTouch() { return System.currentTimeMillis() - lastTouchMs; }
-
     public boolean isDragging() { return dragging; }
-
     public void setState(int s) {
         if (state != s) {
             state = s;
@@ -282,45 +237,36 @@ public class PetView extends View implements Choreographer.FrameCallback {
             invalidate();
         }
     }
-
     public int getState() { return state; }
     public void setMirror(boolean m) { mirrorX = m; invalidate(); }
-
     public void setHoverHeightDp(float v) { hoverHeightDp = v; requestLayout(); invalidate(); }
     public void setPerchWidthDp(float v) { perchWidthDp = v; requestLayout(); invalidate(); }
     public float getHoverHeightDp() { return hoverHeightDp; }
     public float getPerchWidthDp() { return perchWidthDp; }
     public void setAmpScale(float v) { ampScale = Math.max(0.1f, v); invalidate(); }
-
     private float dp(float v) { return v * getResources().getDisplayMetrics().density; }
-
     public float windowW() { return dp(hoverHeightDp) * srcW / (float) srcH; }
     public float windowH() { return dp(hoverHeightDp) * 1.16f; }
     public float perchWindowW() { return dp(perchWidthDp) * 1.10f; }
     public float perchWindowH() {
         return dp(perchWidthDp) * (headY1 - headY0) / (float) (headX1 - headX0) * 1.16f;
     }
-
     @Override
     protected void onMeasure(int wSpec, int hSpec) {
         if (state == STATE_HOVER) setMeasuredDimension(Math.round(windowW()), Math.round(windowH()));
         else setMeasuredDimension(Math.round(perchWindowW()), Math.round(perchWindowH()));
     }
-
     // ---------------- 绘制 ----------------
-
     @Override
     protected void onDraw(Canvas canvas) {
         if (cur == null) return;
         long now = System.nanoTime();
         if (startNs == 0) { startNs = now; lastFrameNs = now; }
         float t = (now - startNs) / NS;
-
         final float tau = (float) (2 * Math.PI);
         pDy = 0.022f * ampScale * (float) Math.sin(tau * t / 2.4f);
         pSx = 1f;
         pSy = 1f + 0.014f * ampScale * (float) Math.sin(tau * 2 * t / 2.4f);
-
         if (dragging) {
             pSx += 0.05f * Math.abs(dragTilt) / 9f;
             pSy -= 0.02f * Math.abs(dragTilt) / 9f;
@@ -339,11 +285,9 @@ public class PetView extends View implements Choreographer.FrameCallback {
             if (k >= 1f) tapNs = 0;
             else pSy *= 1f - 0.10f * (float) Math.sin(Math.PI * k);
         }
-
         if (state == STATE_HOVER) drawHover(canvas);
         else drawPerch(canvas, t);
     }
-
     private void drawHover(Canvas canvas) {
         float h = dp(hoverHeightDp);
         float w = h * srcW / (float) srcH;
@@ -352,14 +296,12 @@ public class PetView extends View implements Choreographer.FrameCallback {
         float bottom = hh - h * 0.08f + pDy * h;
         float top = bottom - h * pSy;
         float halfW = w * pSx / 2f;
-
         RectF dst = new RectF(cx - halfW, top, cx + halfW, bottom);
         canvas.save();
         canvas.rotate(dragging ? dragTilt : 0f, cx, hh - h * 0.10f);
         canvas.drawBitmap(cur, null, dst, paint);
         canvas.restore();
     }
-
     private void drawPerch(Canvas canvas, float t) {
         if (cur == null) return;
         if (rotCache == null || rotCache.isRecycled()) rotCache = rotate90(cur);
@@ -370,18 +312,14 @@ public class PetView extends View implements Choreographer.FrameCallback {
         float peek = w * 0.02f * (1f + (float) Math.sin(tau * t / 2.4f - 1.2f));
         float hh2 = h * pSy;
         float top = (getHeight() - hh2) / 2f + pDy * h;
-
         Rect src = new Rect(headX0, headY0, headX1, headY1);
         RectF dst = new RectF(peek, top, peek + w, top + hh2);
-
         canvas.save();
         if (mirrorX) canvas.scale(-1f, 1f, getWidth() / 2f, 0f);
         canvas.drawBitmap(rotCache, src, dst, paint);
         canvas.restore();
     }
-
     // ---------------- 渲染循环：不可见时真的停 ----------------
-
     @Override
     public void doFrame(long frameTimeNanos) {
         if (!windowVisible) { looping = false; return; }
@@ -391,29 +329,23 @@ public class PetView extends View implements Choreographer.FrameCallback {
         }
         Choreographer.getInstance().postFrameCallback(this);
     }
-
     @Override protected void onAttachedToWindow() { super.onAttachedToWindow(); startLoop(); }
     @Override protected void onDetachedFromWindow() { looping = false; super.onDetachedFromWindow(); }
-
     @Override
     protected void onWindowVisibilityChanged(int visibility) {
         super.onWindowVisibilityChanged(visibility);
         windowVisible = (visibility == VISIBLE);
         if (windowVisible) startLoop();
     }
-
     public void onScreenOff() { windowVisible = false; looping = false; }
     public void onScreenOn() { windowVisible = true; startLoop(); }
-
     private void startLoop() {
         if (looping || !windowVisible) return;
         looping = true;
         lastFrameNs = 0;
         Choreographer.getInstance().postFrameCallback(this);
     }
-
     // ---------------- 触摸 ----------------
-
     @Override
     public boolean onTouchEvent(MotionEvent e) {
         float rx = e.getRawX(), ry = e.getRawY();
@@ -427,7 +359,6 @@ public class PetView extends View implements Choreographer.FrameCallback {
                 lastTouchMs = System.currentTimeMillis();
                 handler.postDelayed(longPressRun, LONG_PRESS_MS);
                 return true;
-
             case MotionEvent.ACTION_MOVE:
                 if (Math.abs(rx - downRawX) > touchSlop || Math.abs(ry - downRawY) > touchSlop) {
                     handler.removeCallbacks(longPressRun);
@@ -446,7 +377,6 @@ public class PetView extends View implements Choreographer.FrameCallback {
                     lastRawY = ry;
                 }
                 return true;
-
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 handler.removeCallbacks(longPressRun);
@@ -458,11 +388,12 @@ public class PetView extends View implements Choreographer.FrameCallback {
                     cycleFace();
                     tapNs = System.nanoTime();
                     invalidate();
+                    // ========== 新增：单击宠物唤起聊天对话框 ==========
+                    ctx.startService(new Intent(ctx, PetService.class).setAction(PetService.ACTION_OPEN_CHAT));
                     if (listener != null) listener.onTap();
                 }
                 longPressed = false;
                 return true;
-
             default:
                 return super.onTouchEvent(e);
         }
